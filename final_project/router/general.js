@@ -2,9 +2,22 @@ const express = require('express');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
+
 const public_users = express.Router();
+const axios = require('axios');
 
+// Function to fetch books async-await w/ axios
+async function fetchBooksByISBN(isbn) {
+    try {
+        const response = await axios.get("https://sarah1234520-5000.theianext-1-labs-prod-misc-tools-us-east-0.proxy.cognitiveclass.ai/");
+        console.log("API Response:", response.data); 
+        return response.data; // Return book details
+    } catch (error) {
+        console.error("Error fetching books by ISBN:", error);
+    }
+}
 
+// POST - User Registration
 public_users.post("/register", (req,res) => {
   const username = req.body.username;
   const password = req.body.password;
@@ -34,52 +47,66 @@ public_users.get('/',function (req, res) {
 });
 
 // GET book details based on ISBN
-public_users.get('/isbn/:isbn', function (req, res) {
+public_users.get('/isbn/:isbn', async function (req, res) {
     const isbn = req.params.isbn; // get ISBN from URL
-    const book = books[isbn];     // look it up in the books object
 
-    if (book) {
-        res.send(JSON.stringify(book, null, 4)); // send book details as JSON
-    } else {
-        res.status(404).json({ message: "Book not found" }); // handle invalid ISBN
-    }
+    // Check if book exists
+    const bookDetails = books[isbn]
+
+    if (bookDetails) {
+            res.send(JSON.stringify(bookDetails, null, 4));
+        } else {
+            res.status(404).json({ message: "Book not found" });
+        }
 });
   
 // GET book details based on author
-public_users.get('/author/:author',function (req, res) {
+public_users.get('/author/:author', async function (req, res) {
     const author = req.params.author.toLowerCase(); // Make search case insensitive
     const matchedBooks = [];
 
-    // Iterate through all books
-    Object.keys(books).forEach((isbn) => {
-        if (books[isbn].author.toLowerCase() === author) {
+    try {
+        // Iterate through all books
+        Object.keys(books).forEach((isbn) => {
+         if (books[isbn].author.toLowerCase() === author) {
             matchedBooks.push({ isbn, ...books[isbn] });
-        }
+         }
     });
 
-    if (matchedBooks.length > 0) {
-        res.send(JSON.stringify(matchedBooks, null, 4)); // Return all matching books
-    } else {
-        res.status(404).json({ message: "Author not found" }); // Handle invalid Author
+        if (matchedBooks.length > 0) {
+            res.send(JSON.stringify(matchedBooks, null, 4)); // Return all matching books
+        } else {
+            res.status(404).json({ message: "Author not found" }); // Handle invalid Author
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
 // GET all books based on title
-public_users.get('/title/:title',function (req, res) {
+public_users.get('/title/:title', async function (req, res) {
     const title = req.params.title.toLowerCase(); // Make search case insensitive
     const matchedBooks = [];
 
-    // Iterate through all books
-    Object.keys(books).forEach((isbn) => {
-        if (books[isbn].title.toLowerCase() === title) {
-            matchedBooks.push({ isbn, ...books[isbn] });
+    try {
+        if (!title) { // If no title is provided
+            return res.status(400).json({ message: "Title is required" });
         }
-    });
+        
+        // Iterate through all books
+        Object.keys(books).forEach((isbn) => {
+            if (books[isbn].title.toLowerCase() === title) {
+                matchedBooks.push({ isbn, ...books[isbn] });
+            }
+        });
 
-    if (matchedBooks.length > 0) {
-        res.send(JSON.stringify(matchedBooks, null, 4)); // Return all matching books
-    } else {
-        res.status(404).json({ message: "Title not found" }); // Handle invalid Title
+        if (matchedBooks.length > 0) {
+            res.send(JSON.stringify(matchedBooks, null, 4)); // Return all matching books
+        } else {
+            res.status(404).json({ message: "Title not found" }); // Handle invalid Title
+        } 
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error" });
     }
 });
 
